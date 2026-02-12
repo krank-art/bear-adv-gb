@@ -10,19 +10,42 @@
 --  the dir(ection) shows which edge of tile is solid
 --  e.g. N (north) means the top edge is solid
 DIR = {N=1,E=2,S=4,W=8}
+
 -- direction collision tiles
 --  only NORTH implemented so far
 dirColTls={[136]=1,[137]=1,[138]=1}
+
 -- sound lookup, jumping, bumping head
 snd={jmp=32,bmp=33}
+
 -- solid tiles index min, solid tiles index max, 
 --  max jump timer, jump velocity, gravity
 cfg={solidMin=1,solidMax=95,maxJmpTmr=28,jmpVel=2,G=2}
+
 -- x, y, velocity x, velocity y width, height, onGround, 
 --  onCeiling, jumpReleased
 plr={x=96,y=24,vx=0,vy=0,w=16,h=16,onGrd=false,
  onCeil=false,jmpTmr=0,jmpRls=true,jmpSnd=false}
+
 cam={x=0,y=0} -- global camera
+
+-- entity behaviour
+bhv={"sblk"}
+
+-- {palette, tile page, tile id, tile x, tile y, tile width, tile height},
+-- {collider x, collider y, collider width, collider height},
+--  entity behaviour
+ent={
+ -- surprise block
+ sblk={{0,0,12,0,0,2,2},{0,0,16,16},"sblk"}
+}
+
+-- collissions, updates each frame
+col={}
+
+-- entities in scene
+ents={}
+
 -- https://github.com/nesbox/TIC-80/wiki/blit-segment
 -- to access page two in tileset, we need to set to 5
 poke4(2*0x3ffc,4) -- set to 2 bits per pixel
@@ -99,14 +122,33 @@ function updPlr()
  local dvx,dvy=0,0 -- delta velocity
  if btn(2) then dvx=dvx-1 end
  if btn(3) then dvx=dvx+1 end
- dvy=jmpPlr()
  --if btn(0) then dvy=dvy-1 end
  --if btn(1) then dvy=dvy+1 end
+ dvy=jmpPlr()
  plr.vx=dvx
  plr.vy=dvy
  plr.onGrd=chkPlrGrd()
  plr.onCeil=chkPlrCeil()
  movePlayer()
+end
+
+-- tests if player collides with entities
+function updCol(px, py, pw, ph)
+ col={} -- refresh each frame
+ for i, entity in ipairs(ents) do
+  local bbox = entity.sblk[2]  -- {ex, ey, ew, eh}
+  local ex, ey, ew, eh = bbox[1], bbox[2], bbox[3], bbox[4]
+
+  if aabb(px, py, pw, ph, ex, ey, ew, eh) then
+   table.insert(collisions, i)  -- store entity index
+  end
+ end
+end
+
+-- returns true if two boxes overlap
+function aabb(px, py, pw, ph, ex, ey, ew, eh)
+ return px < ex + ew and px + pw > ex and
+  py < ey + eh and py + ph > ey
 end
 
 -- isSolid; return if tile at position is solid
