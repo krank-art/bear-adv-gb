@@ -46,6 +46,9 @@ col={}
 -- entities in scene
 ents={}
 
+-- intro step
+intStp=0
+
 -- https://github.com/nesbox/TIC-80/wiki/blit-segment
 -- to access page two in tileset, we need to set to 5
 poke4(2*0x3ffc,4) -- set to 2 bits per pixel
@@ -58,6 +61,30 @@ function TIC()
  spr(784,plr.x,plr.y,1,1,0,0,2,2)
  --print("HELLO WORLD!",84,84)
  print(tableToString(plr),2,2,15,false,1,true)
+ plyInt()
+end
+
+-- play intro
+function plyInt()
+ music(-1)
+ sync(1|2,1) -- switch tiles and sprites to bank 1
+ cls(0)
+ local sprIdx={0,160,320,512,672,832}
+ spr(sprIdx[intStp+1],40,20,-1,2,0,0,10,5)
+ local lines={
+  {"Bear was happy to go to space!",""},
+  {"Off you go little bear!","Adventure is out there!"},
+  {"He reaches space and just... WOW","The view is breathtaking."},
+  {"Do you see that out the window?","Oh no, it's an-- ASTEROID!!!."},
+  {"ARGHHHH!!",""},
+  {"This wasn't supposed to happen.","Poor bear, I hope he survived."},
+ }
+ local ln=lines[intStp+1]
+ for i=1,2 do
+  local w=print(ln[i],0,-60)
+  print(ln[i],(240-w)//2,100+i*10,3,false,1)
+ end
+ if btnp(4,16,16) then intStp=(intStp+1)%6 end
 end
 
 function chkPlrGrd()
