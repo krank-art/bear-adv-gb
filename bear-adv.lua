@@ -32,27 +32,37 @@ cam={x=0,y=0} -- global camera
 -- entity behaviour
 bhv={"sblk"}
 
--- {palette, tile page, tile id, tile x, tile y, tile width, tile height},
+-- {tile id, [duration], [tile x], [tile y], [tile width], [tile height]},
 -- {collider x, collider y, collider width, collider height},
 --  entity behaviour
 ent={
  -- surprise block
- sblk={{0,0,12,0,0,2,2},{0,0,16,16},"sblk"}
+ --sblk={{0,0,12,0,0,2,2},{0,0,16,16},"sblk"}
+ coin={
+  ani={{18,4,0,0,2,2},{20},{22},{20}},
+  tml={}, -- timeline, generated on load
+  cani={} -- constant animation, generated on load
+ }
 }
 
 -- collissions, updates each frame
 col={}
 
 -- entities in scene
-ents={}
+ents={
+ {id="coin",ast={}} 
+}
 
 -- intro step
 intStp=0
-
--- https://github.com/nesbox/TIC-80/wiki/blit-segment
--- to access page two in tileset, we need to set to 5
-poke4(2*0x3ffc,4) -- set to 2 bits per pixel
-music(0)
+function BOOT() 
+ bldCnstAniAll(ent)
+ loadEnts(ents)
+ -- https://github.com/nesbox/TIC-80/wiki/blit-segment
+ -- to access page two in tileset, we need to set to 5
+ poke4(2*0x3ffc,4) -- set to 2 bits per pixel
+ music(0)
+end
 
 function TIC()
  cls(13)
@@ -61,7 +71,59 @@ function TIC()
  spr(784,plr.x,plr.y,1,1,0,0,2,2)
  --print("HELLO WORLD!",84,84)
  print(tableToString(plr),2,2,15,false,1,true)
- plyInt()
+ --plyInt()
+ local id, ast = ents[1].id, ents[1].ast
+ local entDef=ent[id]
+ local tml,cani=entDef.tml,entDef.cani
+ plyAni(cani,tml,ast,16,16)
+end
+
+function loadEnts(ents)
+ for i,e in ipairs(ents) do
+  e.ast={ -- ast = animation state
+   el=0 -- elapsed ticks
+  }
+ end
+end
+
+-- build constant animation for all entity definitions
+function bldCnstAniAll(ent)
+ for entName,data in pairs(ent) do
+  local tml,cani=bldCnstAni(data.ani)
+  local cur=ent[entName]
+  cur.tml=tml
+  cur.cani=cani
+ end
+end
+
+
+-- build constant animation
+function bldCnstAni(ani)
+ -- timeline
+ local tml,t,dur = {0},0,0
+ for i,frm in ipairs(ani) do
+  -- if duration present in this frame, update it
+  if frm[2]~=nil then dur=frm[2] end
+  t=t+dur
+  tml[#tml+1]=t
+ end
+
+ -- constant frames (have full data):
+ --  the regular frames are written a compressed way
+ --  to save space by only specifying changes in
+ --  e.g.: ani={{18,4,0,0,2,2},{20},{22},{20}}
+ local cani={} -- constant animation
+ local f=ani[1] -- first frame
+ -- tile id, duration, x, y, tile width, tile height
+ local t,d,x,y,w,h=f[1],f[2],f[3],f[4],f[5],f[6]
+ for i,c in ipairs(ani) do
+  -- c is current frame
+  t,d,x=c[1] or t, c[2] or d, c[3] or x
+  y,w,h=c[4] or y, c[5] or w, c[6] or h
+  cani[i]={t,d,x,y,w,h}
+ end
+
+ return tml,cani
 end
 
 -- play intro
@@ -85,6 +147,32 @@ function plyInt()
   print(ln[i],(240-w)//2,100+i*10,3,false,1)
  end
  if btnp(4,16,16) then intStp=(intStp+1)%6 end
+end
+
+-- play animation (constant animation, timeline,
+--  animation state, x, y)
+function plyAni(cani,tml,state,x,y)
+ local el=state.el -- elapsed ticks
+ local dur=tml[#tml] -- total animation duration
+  
+ -- get current frame to play
+ local curFrmIdx
+ for i=#tml,1,-1 do
+  --error(tableToString(tml[i]))
+  if el>=tml[i] then curFrmIdx=i break end
+ end
+
+ -- draw sprite
+ local f=cani[curFrmIdx]
+ local t,d,fx,fy,w,h=f[1],f[2],f[3],f[4],f[5],f[6]
+ spr(t,x+fx,y+fy,1,1,0,0,w,h)
+ --error(tableToString(cani[2]))
+ --print(curFrmIdx)
+ 
+ -- increase animation counter
+ el=(el+1)%dur
+ state.el=el
+ return el
 end
 
 function chkPlrGrd()
