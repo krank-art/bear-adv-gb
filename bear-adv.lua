@@ -11,7 +11,7 @@
 --  e.g. N (north) means the top edge is solid
 DIR = {N=1,E=2,S=4,W=8}
 
--- direction collision tiles
+-- direction collision tiles flags
 --  only NORTH implemented so far
 dirColTls={[136]=1,[137]=1,[138]=1}
 
@@ -27,7 +27,10 @@ cfg={solidMin=1,solidMax=95,maxJmpTmr=28,jmpVel=2,G=2}
 plr={x=96,y=24,vx=0,vy=0,w=16,h=16,onGrd=false,
  onCeil=false,jmpTmr=0,jmpRls=true,jmpSnd=false}
 
-cam={x=0,y=0} -- global camera
+lvl={coins=0}
+
+-- global camera
+cam={x=0,y=0}
 
 -- entity behaviour
 bhv={"sblk"}
@@ -41,22 +44,37 @@ ent={
  coin={
   ani={{18,16,0,0,2,2},{20,8},{22},{24},{26},{28}},
   tml={}, -- timeline, generated on load
-  cani={} -- constant animation, generated on load
+  cani={}, -- constant animation, generated on load
+  def=nil, -- shorthand for entity definition
+  aniFlg=0, -- animation flags, flagged enum; see drwEnt()
+  col={0,0,16,16}, -- collider
+  bhv={"coin"}, -- behaviour
+  dead=false, -- marked so at the end of frame it can be removed
  },
  gear={
-  ani={{82,90,0,0,2,2},{80,6},{82,16},{84,8},{86},{88}}
+  ani={{82,90,0,0,2,2},{80,6},{82,16},{84,8},{86},{88}},
+  col={0,0,16,16},
+  aniFlg=1,
+  bhv={"gear"}, -- behaviour
  }
 }
 
 -- collissions, updates each frame
-col={}
+cols={}
 
 -- entities in scene
+-- during build, entities get a unique id ("n$")
+-- where $ is the index. remember to use entCnt
+-- upon inserting new entries
 ents={
- {id="coin",ast={}},
- {id="coin"},
- {id="gear"}
+ {id="coin",x=16,y=32,ast={}},
+ {id="coin",x=32,y=32},
+ {id="gear",x=200,y=48},
+ -- during runtime only append entities at the end bc
+ --  collision resolution is dependent on index here
 }
+-- entity counter
+entCnt=-1
 
 t=0
 
@@ -75,25 +93,75 @@ function TIC()
  cls(13)
  map()
  updPlr()
- spr(784,plr.x,plr.y,1,1,0,0,2,2)
+ updCol()
+ updEnts()
  --print("HELLO WORLD!",84,84)
- print(tableToString(plr),2,2,15,false,1,true)
+ print(tableToString(plr),2,10,15,false,1,true)
+ print("coins: "..lvl.coins,2,2,15)
  --plyInt()
- drwEnt(ents[1],16,32)
- drwEnt(ents[2],32,32)
- drwEnt(ents[3],200,48-(sin(t*0.15)*2))
+ drwEnts()
+ drwPlr()
+ lateUpd()
  t=t+1
 end
 
-function drwEnt(e,x,y)
- local id, ast = e.id, e.ast
+-- late update
+function lateUpd()
+ for key,e in pairs(ents) do
+  -- mark dead entities ready for GC
+  if e.dead then ents[key]=nil end
+ end
+end
+
+function drwPlr()
+ spr(784,plr.x,plr.y,1,1,0,0,2,2)
+end
+
+-- update entitites
+function updEnts()
+ -- collision detection is setup only for the player
+ --  so far, so entities will not collide with each
+ for i,key in pairs(cols) do
+  local entity=ents[key]
+  local def=entity.def
+  local bhv=def.bhv
+  for j,trait in pairs(bhv) do
+   if trait=="coin" then 
+    lvl.coins=lvl.coins+1
+    entity.dead=true
+   end
+  end
+ end
+end
+
+function drwEnts()
+ for i,e in pairs(ents) do drwEnt(e) end
+end
+
+function drwEnt(e)
+ local id, ast, x, y = e.id, e.ast, e.x, e.y
  local entDef=ent[id]
- local tml,cani=entDef.tml,entDef.cani
+ local flg=entDef.aniFlg or 0
+ if flg > 0 then
+  -- if flag 1 is set, move up and down visually
+  if flg&1~=0 then y=y-(sin(t*0.15)*2) end
+ end
+ local tml,cani=entDef.tml,entDef.cani,entDef
  plyAni(cani,tml,ast,x,y)
 end
 
 function loadEnts(ents)
+ entCnt=#ents+1
  for i,e in ipairs(ents) do
+  -- change index to absolute ones so we can
+  --  remove items without order breaking
+  ents["n"..i]=e
+  ents[i]=nil
+
+  -- add definition shorthand
+  e.def=ent[e.id]
+
+  -- prepare for animation
   e.ast={ -- ast = animation state
    el=0 -- elapsed ticks
   }
@@ -262,14 +330,16 @@ function updPlr()
 end
 
 -- tests if player collides with entities
-function updCol(px, py, pw, ph)
- col={} -- refresh each frame
- for i, entity in ipairs(ents) do
-  local bbox = entity.sblk[2]  -- {ex, ey, ew, eh}
-  local ex, ey, ew, eh = bbox[1], bbox[2], bbox[3], bbox[4]
-
-  if aabb(px, py, pw, ph, ex, ey, ew, eh) then
-   table.insert(collisions, i)  -- store entity index
+function updCol()
+ local px,py,pw,ph=plr.x,plr.y,plr.w,plr.h
+ cols={} -- refresh each frame
+ for k, entity in pairs(ents) do
+  local entDef=ent[entity.id]
+  local col=entDef.col -- collider in ent def
+  local ex,ey=entity.x,entity.y
+  local cx,cy,cw,ch = col[1],col[2],col[3],col[4]
+  if aabb(px,py,pw,ph,ex+cx,ey+cy,cw,ch) then
+   cols[#cols+1]=k -- store entity index
   end
  end
 end
