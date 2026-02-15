@@ -39,7 +39,7 @@ bhv={"sblk"}
 -- {tile id, [duration], [tile x], [tile y], [tile width], [tile height]},
 -- {collider x, collider y, collider width, collider height},
 --  entity behaviour
-ent={
+entDefs={
  -- surprise block
  --sblk={{0,0,12,0,0,2,2},{0,0,16,16},"sblk"}
  coin={
@@ -84,7 +84,7 @@ cookie=nil -- Turbine's cookie
 -- intro step
 intStp=0
 function BOOT() 
- bldCnstAniAll(ent)
+ bldCnstAniAll(entDefs)
  loadEnts(ents)
  -- https://github.com/nesbox/TIC-80/wiki/blit-segment
  -- to access page two in tileset, we need to set to 5
@@ -126,14 +126,14 @@ function updEnts()
  -- collision detection is setup only for the player
  --  so far, so entities will not collide with each
  for i,key in pairs(cols) do
-  local entity=ents[key]
-  local def=entity.def
+  local ent=ents[key]
+  local def=ent.def
   local bhv=def.bhv
   for j,trait in pairs(bhv) do
    if trait=="coin" then 
     sfx(table.unpack(snd.coin))
     lvl.coins=lvl.coins+1
-    entity.dead=true
+    ent.dead=true
    end
   end
  end
@@ -145,13 +145,13 @@ end
 
 function drwEnt(e)
  local id, ast, x, y = e.id, e.ast, e.x, e.y
- local entDef=ent[id]
- local flg=entDef.aniFlg or 0
+ local def=e.def
+ local flg=def.aniFlg or 0
  if flg > 0 then
   -- if flag 1 is set, move up and down visually
   if flg&1~=0 then y=y-(sin(t*0.15)*2) end
  end
- local tml,cani=entDef.tml,entDef.cani,entDef
+ local tml,cani=def.tml,def.cani,def
  plyAni(cani,tml,ast,x,y)
 end
 
@@ -164,7 +164,7 @@ function loadEnts(ents)
   ents[i]=nil
 
   -- add definition shorthand
-  e.def=ent[e.id]
+  e.def=entDefs[e.id]
 
   -- prepare for animation
   e.ast={ -- ast = animation state
@@ -177,7 +177,7 @@ end
 function bldCnstAniAll(ent)
  for entName,data in pairs(ent) do
   local tml,cani=bldCnstAni(data.ani)
-  local cur=ent[entName]
+  local cur=entDefs[entName]
   cur.tml=tml
   cur.cani=cani
  end
@@ -344,10 +344,10 @@ end
 function updCol()
  local px,py,pw,ph=plr.x,plr.y,plr.w,plr.h
  cols={} -- refresh each frame
- for k, entity in pairs(ents) do
-  local entDef=ent[entity.id]
-  local col=entDef.col -- collider in ent def
-  local ex,ey=entity.x,entity.y
+ for k, ent in pairs(ents) do
+  local def=ent.def
+  local col=def.col -- collider in ent def
+  local ex,ey=ent.x,ent.y
   local cx,cy,cw,ch = col[1],col[2],col[3],col[4]
   if aabb(px,py,pw,ph,ex+cx,ey+cy,cw,ch) then
    cols[#cols+1]=k -- store entity index
