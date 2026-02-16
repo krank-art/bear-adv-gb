@@ -106,7 +106,8 @@ function TIC()
  updEnts()
  updCam()
  --plyInt()
- map(0,17,30,17,cam.x//10,cam.y//10) --background
+ --map(0,17,30,17,cam.x//10,cam.y//10) --background
+ drwMapRpt(0,20,6,6,cam.x//10,cam.y//10) --background
  drwMap() --foreground
  --print("HELLO WORLD!",84,84)
  print(tableToString(plr),2,10,15,false,1,true)
@@ -287,8 +288,7 @@ function getMapDrwChks(mx,my,w,h)
  return chks
 end
 
--- draw map, splits map into 6x6 tile chunks so
---  we can have transparent sections and 4 colors
+-- draw map
 function drwMap()
  local q=8 -- padding
  -- render area absolute coords
@@ -298,13 +298,23 @@ function drwMap()
  for y=my1,my2-1 do
   for x=mx1,mx2-1 do
    local dx,dy=rx1*8,ry1*8
-   --local tx,ty=i*cs+x,j*cs+y
-   --local tid=mget(tx,ty)
    local tid=mget(x,y)
    local sid=(tid//16*32)+tid%16
    local ck=maskHas(trnsMask,sid) and 0 or -1 -- color key
    if sid~=227 then spr(sid,x*8-cam.x,y*8-cam.y,ck) end
    --error(frmt("tx=%d, ty=%d, tid=%d, sid=%d",tx,ty,tid,sid))
+  end
+ end
+end
+
+-- draw map repeat
+-- map x, map y, map width, map height, draw x, draw y, [color key=-1]
+function drwMapRpt(mx,my,mw,mh,x,y,ck)
+ local ck=ck or -1
+ local mi,mj=cil(30/mw),cil(30/mh) -- map draws per x axis, per y axis
+ for i=0,mi-1 do
+  for j=0,mj-1 do
+   map(mx,my,mw,mh,x+i*mw*8,y+j*mh*8,ck)
   end
  end
 end
