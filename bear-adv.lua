@@ -23,15 +23,15 @@ snd={jmp=32,bmp=33,coin={34,60,20}}
 cfg={solidMin=1,solidMax=95,maxJmpTmr=28,jmpVel=2,G=2}
 
 -- x, y, velocity x, velocity y width, height, onGround, 
---  onCeiling, jumpReleased, flipped
+--  onCeiling, jumpReleased, flipped, last x, last y
 plr={x=96,y=24,vx=0,vy=0,w=16,h=20,onGrd=false,
  onCeil=false,jmpTmr=0,jmpRls=true,jmpSnd=false,
- flp=false}
+ flp=false,lx=nil,ly=nil}
 
 lvl={coins=0}
 
 -- global camera
-cam={x=0,y=0,box=nil}
+cam={x=0,y=0,dx=0,dy=0,box={x=0,y=0,w=240,h=136}}
 
 -- entity behaviour
 bhv={"sblk"}
@@ -101,16 +101,17 @@ end
 
 function TIC()
  cls(13)
- updCam()
- map(0,17,30,17,sin(t*0.05)*10,cos(t*0.05)*10) --background
- drwMap() --foreground
  updPlr()
  updCol()
  updEnts()
+ updCam()
+ --plyInt()
+ map(0,17,30,17,sin(t*0.05)*10,cos(t*0.05)*10) --background
+ drwMap() --foreground
  --print("HELLO WORLD!",84,84)
  print(tableToString(plr),2,10,15,false,1,true)
  print("coins: "..lvl.coins,2,2,15)
- --plyInt()
+ print(tableToString(cam))
  drwEnts()
  drwPlr()
  lateUpd()
@@ -131,9 +132,34 @@ function drwPlr()
 end
 
 function updCam()
- cam.x=plr.x+plr.w//2-120
- cam.y=plr.y+plr.h//2-68
- print(frmt("cx:%d,cy:%d",cam.x,cam.y),56,2)
+ -- basis is centered player pos
+ local px=plr.x+plr.w//2-120
+ local py=plr.y+plr.h//2-68
+
+ -- get offset based on player movement
+ local dx=cam.dx+plr.x-plr.lx
+ local dy=cam.dy+plr.y-plr.ly
+
+ -- clamp offset
+ cam.dx=clmp(dx,-40,40)
+ cam.dy=clmp(dy,-24,24)
+
+ -- apply coords
+ cam.x=px+cam.dx
+ cam.y=py+cam.dy
+
+ -- clamp coords to region
+ local cbx=cam.box
+ if cbx then
+  local bx1, by1, bx2, by2=
+   cbx.x, cbx.y, cbx.x+cbx.w, cbx.y+cbx.h
+  if plr.x>=bx1 and plr.x+plr.w<bx2 and 
+    plr.y>=by1 and plr.y+plr.h<by2 then
+   cam.x=clmp(cam.x,bx1,bx2-240)
+   cam.y=clmp(cam.y,by1,by2-136)
+  end
+ end
+ --print(frmt("cx:%d,cy:%d",cam.x,cam.y),56,2)
 end
 
 -- update entitites
@@ -561,6 +587,10 @@ function movePlayer()
    py = py + sign
   end
  end
+
+ -- remember last position
+ plr.lx=plr.x
+ plr.ly=plr.y
 
  -- apply movement
  plr.x = plr.x + vx
