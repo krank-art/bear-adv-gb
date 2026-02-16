@@ -31,7 +31,7 @@ plr={x=96,y=24,vx=0,vy=0,w=16,h=20,onGrd=false,
 lvl={coins=0}
 
 -- global camera
-cam={x=0,y=0,dx=0,dy=0,box={x=0,y=0,w=240,h=136}}
+cam={x=0,y=0,dx=0,dy=0,box={x=0,y=0,w=1920,h=136}}
 
 -- entity behaviour
 bhv={"sblk"}
@@ -111,7 +111,7 @@ function TIC()
  --print("HELLO WORLD!",84,84)
  print(tableToString(plr),2,10,15,false,1,true)
  print("coins: "..lvl.coins,2,2,15)
- print(tableToString(cam))
+ --print(tableToString(cam))
  drwEnts()
  drwPlr()
  lateUpd()
@@ -289,29 +289,24 @@ end
 
 -- draw map, splits map into 6x6 tile chunks so
 --  we can have transparent sections and 4 colors
-function drwMap(mx,my,w,h)
- mx,my,w,h=mx or 0,my or 0,w or 30,h or 17
- local cs=6 -- chunk size
- for i=0,w//cs do
-  for j=0,h//cs do
-   local trns=mapTrns[i] and mapTrns[i][j] or false -- transparent
-   --if not trns then
-   -- map(i*cs,j*cs,cs,cs) --TODO cap width and height
-   --else
-    for y=0,cs-1 do
-     for x=0,cs-1 do
-      local tx,ty=i*cs+x,j*cs+y
-      local tid=mget(tx,ty)
-      local sid=(tid//16*32)+tid%16
-      local ck=maskHas(trnsMask,sid) and 0 or -1 -- color key
-      if sid~=227 then spr(sid,tx*8-cam.x,ty*8-cam.y,ck) end
-      --error(frmt("tx=%d, ty=%d, tid=%d, sid=%d",tx,ty,tid,sid))
-     end
-    end
-   --end
+function drwMap()
+ local q=8 -- padding
+ -- render area absolute coords
+ local rx1,ry1,rx2,ry2=cam.x-q,cam.y-q,cam.x+240+q,cam.y+136+q
+ -- render area tile coords
+ local mx1,my1,mx2,my2=flr(rx1/8),flr(ry1/8),cil(rx2/8),cil(ry2/8)
+ for y=my1,my2-1 do
+  for x=mx1,mx2-1 do
+   local dx,dy=rx1*8,ry1*8
+   --local tx,ty=i*cs+x,j*cs+y
+   --local tid=mget(tx,ty)
+   local tid=mget(x,y)
+   local sid=(tid//16*32)+tid%16
+   local ck=maskHas(trnsMask,sid) and 0 or -1 -- color key
+   if sid~=227 then spr(sid,x*8-cam.x,y*8-cam.y,ck) end
+   --error(frmt("tx=%d, ty=%d, tid=%d, sid=%d",tx,ty,tid,sid))
   end
  end
- return chks
 end
 
 -- bitmask create
@@ -598,6 +593,7 @@ function movePlayer()
 end
 
 flr=math.floor
+cil=math.ceil
 min=math.min
 max=math.max
 abs=math.abs
