@@ -107,7 +107,7 @@ function TIC()
  updCam()
  --plyInt()
  --map(0,17,30,17,cam.x//10,cam.y//10) --background
- drwMapRpt(0,20,6,6,cam.x//10,cam.y//10) --background
+ drwMapRpt(0,17,30,17,cam.x//10,cam.y//10) --background
  drwMap() --foreground
  --print("HELLO WORLD!",84,84)
  print(tableToString(plr),2,10,15,false,1,true)
@@ -311,10 +311,16 @@ end
 -- map x, map y, map width, map height, draw x, draw y, [color key=-1]
 function drwMapRpt(mx,my,mw,mh,x,y,ck)
  local ck=ck or -1
+ local ox,oy=mw*8,mh*8 -- offset
+ -- modulo coords so only offset from repeating map needs to be drawn
+ local x,y=x%ox,y%oy
  local mi,mj=cil(30/mw),cil(30/mh) -- map draws per x axis, per y axis
- for i=0,mi-1 do
-  for j=0,mj-1 do
-   map(mx,my,mw,mh,x+i*mw*8,y+j*mh*8,ck)
+ for i=0,mi do -- we do one extra draw repeat bc offset
+  for j=0,mj do
+   -- TODO: we could optimize by limiting draw in first and last 
+   --  iteration to really only draw visible tiles, but for now 
+   --  we will keep this dumb implementation
+   map(mx,my,mw,mh,x+i*mw*8-ox,y+j*mh*8-oy,ck)
   end
  end
 end
