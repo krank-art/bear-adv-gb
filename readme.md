@@ -49,4 +49,21 @@ and then run `load bear-adv.lua`.
 * Enemies should have a friendly and round design
   * Enemies can drop coins or powerups upon death
 
+
+## Tile index mapping in 2 BPP
+
+* setting game to 2 bits per pixel doubles the amount of sprites
+* but the map still can only represent 0 to 255 different tiles
+* so when we want to draw a tile as sprite, we need to map between the index.
+* Example with tile count of 4 instead of 16:
+  ```
+  .-- 4bpp --.  .-------- 2bpp --------.
+   0  1  2  3    0  1  2  3  4  5  6  7
+   4  5  6  7    8  9 10 11 12 13 14 15
+   8  9 10 11   16 17 18 19 20 21 22 23
+  12 13 14 15   24 25 26 27 28 29 30 31
+  ```
+* tid:15 = sid:27
+  * `(15//4)*8 + 15%4 <=> 3*8 + 3 <=> 24 + 3 <=> 27`
+
 Krank (c) 2026
