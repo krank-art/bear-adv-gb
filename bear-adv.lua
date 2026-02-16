@@ -31,7 +31,7 @@ plr={x=96,y=24,vx=0,vy=0,w=16,h=20,onGrd=false,
 lvl={coins=0}
 
 -- global camera
-cam={x=0,y=0}
+cam={x=0,y=0,box=nil}
 
 -- entity behaviour
 bhv={"sblk"}
@@ -101,6 +101,7 @@ end
 
 function TIC()
  cls(13)
+ updCam()
  map(0,17,30,17,sin(t*0.05)*10,cos(t*0.05)*10) --background
  drwMap() --foreground
  updPlr()
@@ -126,7 +127,13 @@ end
 
 function drwPlr()
  local flp=plr.flp and 1 or 0
- spr(770,plr.x,plr.y-4,1,1,flp,0,2,3)
+ spr(770,plr.x-cam.x,plr.y-cam.y-4,1,1,flp,0,2,3)
+end
+
+function updCam()
+ cam.x=plr.x+plr.w//2-120
+ cam.y=plr.y+plr.h//2-68
+ print(frmt("cx:%d,cy:%d",cam.x,cam.y),56,2)
 end
 
 -- update entitites
@@ -160,7 +167,7 @@ function drwEnt(e)
   if flg&1~=0 then y=y-(sin(t*0.15)*2) end
  end
  local tml,cani=def.tml,def.cani,def
- plyAni(cani,tml,ast,x,y)
+ plyAni(cani,tml,ast,x-cam.x,y-cam.y)
 end
 
 function loadEnts(ents)
@@ -271,7 +278,7 @@ function drwMap(mx,my,w,h)
       local tid=mget(tx,ty)
       local sid=(tid//16*32)+tid%16
       local ck=maskHas(trnsMask,sid) and 0 or -1 -- color key
-      if sid~=227 then spr(sid,tx*8,ty*8,ck) end
+      if sid~=227 then spr(sid,tx*8-cam.x,ty*8-cam.y,ck) end
       --error(frmt("tx=%d, ty=%d, tid=%d, sid=%d",tx,ty,tid,sid))
      end
     end
