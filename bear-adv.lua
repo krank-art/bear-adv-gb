@@ -133,21 +133,31 @@ function drwPlr()
 end
 
 function updCam()
- -- basis is centered player pos
- local px=plr.x+plr.w//2-120
- local py=plr.y+plr.h//2-68
+ -- cam controls is special in that in x axis,
+ --  camera scrolls a little forward so the player
+ --  can see where they are running to. In y axis,
+ --  the camera follows a safety margin (safe action),
+ --  so when falling down, the player is at the bottom
+ --  of the action area and can jump without cam moving.
+ -- TODO: drag camera to smooth motion and give sudden
+ --  stops more punch (overshoot for a few frames)
 
- -- get offset based on player movement
- local dx=cam.dx+plr.x-plr.lx
- local dy=cam.dy+plr.y-plr.ly
+ 
+ local px=plr.x+plr.w//2-120 -- x basis is centered player pos
+ local dx=cam.dx+plr.x-plr.lx -- x offset based on player movement
+
+ local q,dy=24,0 --y padding, offset (delta) y
+ local cy1,cy2=cam.y+q,cam.y+136-plr.h-q
+ if plr.y<cy1 then dy=plr.y-cy1
+ elseif plr.y>cy2 then dy=plr.y-cy2 end
 
  -- clamp offset
- cam.dx=clmp(dx,-40,40)
- cam.dy=clmp(dy,-24,24)
+ cam.dx=clmp(dx,-40,40) 
+ cam.dy=clmp(dy,-16,16) --hard cap
 
- -- apply coords
- cam.x=px+cam.dx
- cam.y=py+cam.dy
+ -- y: apply coords
+ cam.y=cam.y+cam.dy
+ cam.x=px+cam.dx 
 
  -- clamp coords to region
  local cbx=cam.box
