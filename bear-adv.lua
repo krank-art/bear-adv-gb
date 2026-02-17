@@ -31,7 +31,9 @@ plr={x=96,y=24,vx=0,vy=0,w=16,h=20,onGrd=false,
 lvl={coins=0}
 
 -- global camera
-cam={x=0,y=0,dx=0,dy=0,box={x=0,y=0,w=1920,h=136}}
+-- pos x, pos y, offset x, offset y, target x, target y, 
+--  cam region, velocity
+cam={x=0,y=0,dx=0,dy=0,tx=0,ty=0,box={x=0,y=0,w=1920,h=136},v=5}
 
 -- entity behaviour
 bhv={"sblk"}
@@ -142,12 +144,11 @@ function updCam()
  -- TODO: drag camera to smooth motion and give sudden
  --  stops more punch (overshoot for a few frames)
 
- 
  local px=plr.x+plr.w//2-120 -- x basis is centered player pos
  local dx=cam.dx+plr.x-plr.lx -- x offset based on player movement
 
  local q,dy=24,0 --y padding, offset (delta) y
- local cy1,cy2=cam.y+q,cam.y+136-plr.h-q
+ local cy1,cy2=cam.ty+q,cam.ty+136-plr.h-q
  if plr.y<cy1 then dy=plr.y-cy1
  elseif plr.y>cy2 then dy=plr.y-cy2 end
 
@@ -156,8 +157,8 @@ function updCam()
  cam.dy=clmp(dy,-16,16) --hard cap
 
  -- y: apply coords
- cam.y=cam.y+cam.dy
- cam.x=px+cam.dx 
+ cam.ty=cam.ty+cam.dy
+ cam.tx=px+cam.dx 
 
  -- clamp coords to region
  local cbx=cam.box
@@ -166,8 +167,21 @@ function updCam()
    cbx.x, cbx.y, cbx.x+cbx.w, cbx.y+cbx.h
   if plr.x>=bx1 and plr.x+plr.w<bx2 and 
     plr.y>=by1 and plr.y+plr.h<by2 then
-   cam.x=clmp(cam.x,bx1,bx2-240)
-   cam.y=clmp(cam.y,by1,by2-136)
+   cam.tx=clmp(cam.tx,bx1,bx2-240)
+   cam.ty=clmp(cam.ty,by1,by2-136)
+  end
+ end
+
+ -- move towards cam target
+ local bx,by=cam.tx-cam.x,cam.ty-cam.y -- target delta
+ local d,v=sqrt(bx*bx+by*by),cam.v --distance, velocity
+ if d>0 then
+  if d<=v then
+   cam.x=cam.tx
+   cam.y=cam.ty
+  else
+   cam.x=cam.x+bx/d*v
+   cam.y=cam.y+by/d*v
   end
  end
  --print(frmt("cx:%d,cy:%d",cam.x,cam.y),56,2)
@@ -625,6 +639,7 @@ max=math.max
 abs=math.abs
 sin=math.sin
 cos=math.cos
+sqrt=math.sqrt
 frmt=string.format
 function clmp(v, low, hi) return math.max(low, math.min(hi, v)) end
 function tern(cond, t, f) -- ternary operation
