@@ -454,24 +454,26 @@ end
 function jmpPlr()
  local jmpDwn = btn(4)
 
- if plr.mov==MOV.L then
-  plr.vy=0
-  if btn(0) then return -1 end
-  if btn(1) then return 1 end
- end
-
  -- update release flag
  if not jmpDwn then
   plr.jmpRls = true  -- button released, next jump allowed
  end
  
- -- start jump if on ground and button was released
- if jmpDwn and plr.onGrd and plr.jmpRls then
+ -- start jump if jump button was released and on ground or on ladder
+ if jmpDwn and plr.jmpRls and (plr.onGrd or plr.mov==MOV.L) then
+  plr.mov=MOV.R -- set to running after jumping off ladder
   plr.jmpTmr = 1
   plr.vy = -cfg.jmpVel
   plr.jmpRls = false  -- prevents immediate auto-repeat
   plr.jmpSnd=true
   sfx(32,40,-1)
+ end
+
+ -- handle ladder climbing
+ if plr.mov==MOV.L then
+  plr.vy=0
+  if btn(0) then return -1 end
+  if btn(1) then return 1 end
  end
  
  if plr.onCeil and plr.jmpTmr > 0 then
