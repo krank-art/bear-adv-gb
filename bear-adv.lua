@@ -28,7 +28,7 @@ MOV={R=1,L=2,S=4}
 -- x, y, velocity x, velocity y width, height, onGround, 
 --  onCeiling, onLadder, onLadderTop, movement mode, jumpTimer, 
 --  jumpReleased, jumpSound, flipped, last x, last y
-plr={x=96,y=24,vx=0,vy=0,w=16,h=20,onGrd=false,
+plr={x=96,y=24,vx=0,vy=0,w=10,h=20,onGrd=false,
  onCeil=false,onLdr=false,onLdrTop=false,mov=MOV.R,
  jmpTmr=0,jmpRls=true,jmpSnd=false,
  flp=false,lx=nil,ly=nil}
@@ -140,7 +140,7 @@ end
 
 function drwPlr()
  local flp=plr.flp and 1 or 0
- spr(770,plr.x-cam.x,plr.y-cam.y-4,1,1,flp,0,2,3)
+ spr(770,plr.x-3-cam.x,plr.y-cam.y-4,1,1,flp,0,2,3)
 end
 
 function updCam()
