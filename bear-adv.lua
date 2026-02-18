@@ -22,10 +22,15 @@ snd={jmp=32,bmp=33,coin={34,60,20}}
 --  max jump timer, jump velocity, gravity
 cfg={solidMin=1,solidMax=95,maxJmpTmr=28,jmpVel=2,G=2}
 
+-- movement type: Running, Ladder (Climbing), Swimming
+MOV={R=1,L=2,S=4}
+
 -- x, y, velocity x, velocity y width, height, onGround, 
---  onCeiling, jumpReleased, flipped, last x, last y
+--  onCeiling, onLadder, movement mode, jumpTimer, 
+--  jumpReleased, jumpSound, flipped, last x, last y
 plr={x=96,y=24,vx=0,vy=0,w=16,h=20,onGrd=false,
- onCeil=false,jmpTmr=0,jmpRls=true,jmpSnd=false,
+ onCeil=false,onLdr=false,mov=MOV.R,
+ jmpTmr=0,jmpRls=true,jmpSnd=false,
  flp=false,lx=nil,ly=nil}
 
 lvl={coins=0}
@@ -87,11 +92,15 @@ cookie=nil -- Turbine's cookie
 --  tiles where the black color should be drawn as transparent
 trnsMask=nil
 
+-- ladder mask
+ldrMsk=nil
+
 -- intro step
 intStp=0
 
 function BOOT() 
- trnsMask=maskNew(227,320,321,322,323,352,353,354,355)
+ trnsMask=maskNew(16,{227,320,321,322,323,352,353,354,355})
+ ldrMsk=maskNew(4,{139,140,141,142,143,155,156,157,158,159,171,172,173})
  bldCnstAniAll(entDefs)
  loadMap()
  loadEnts(ents)
@@ -350,12 +359,12 @@ function drwMapRpt(mx,my,mw,mh,x,y,ck)
 end
 
 -- bitmask create
-function maskNew(...)
+function maskNew(size,args)
   -- integers in TIC-80 Lua are 64bit, so 16 ints
   --  can represent 0...1023. in 2 bits per pixel,
   --  this covers the entire spritesheet
- local mask,args = {},{...}
- for i=1,16 do mask[i]=0 end
+ local size,mask=size or 16,{}
+ for i=1,size do mask[i]=0 end
  for _, v in ipairs(args) do maskAdd(mask,v) end
  return mask
 end
@@ -445,6 +454,12 @@ end
 function jmpPlr()
  local jmpDwn = btn(4)
 
+ if plr.mov==MOV.L then
+  plr.vy=0
+  if btn(0) then return -1 end
+  if btn(1) then return 1 end
+ end
+
  -- update release flag
  if not jmpDwn then
   plr.jmpRls = true  -- button released, next jump allowed
@@ -476,8 +491,9 @@ function jmpPlr()
   if plr.jmpSnd then sfx(-1) end
  end
 
- -- apply gravity if not on ground and jump timer finished
- if not plr.onGrd and plr.jmpTmr == 0 then
+ -- apply gravity if not on ground, jump timer finished
+ --  and currently not in climb mode
+ if not plr.onGrd and plr.jmpTmr == 0 and plr.mov~=MOV.L then
   plr.vy = cfg.G
  end
 
@@ -485,8 +501,29 @@ function jmpPlr()
  return plr.vy
 end
 
+-- check player tiles
+function chkPlrTil(checker)
+ local x,y,w,h=plr.x,plr.y,plr.w,plr.h
+ local x1,x2,y1,y2=x//8,(x+w-1)//8,y//8,(y+h-1)//8
+ for i=x1,x2 do
+  for j=y1,y2 do
+   if checker(mget(i,j),i,j)==true then return true end
+  end
+ end
+ return false
+end
+
 -- update player
 function updPlr()
+ -- handle ladders
+ plr.onLdr=chkPlrTil(function (tile,x,y) 
+  return maskHas(ldrMsk,tile)
+ end)
+ -- set back to running mode when not on ladder anymore
+ if plr.mov==MOV.L and not plr.onLdr then plr.mov=MOV.R end
+ -- enter ladder mode when pressing up and ladder in reach
+ if btn(0) and plr.onLdr then plr.mov=MOV.L end
+
  local dvx,dvy=0,0 -- delta velocity
  if btn(2) then 
   dvx=dvx-1
@@ -496,8 +533,6 @@ function updPlr()
   dvx=dvx+1
   plr.flp=false
  end
- --if btn(0) then dvy=dvy-1 end
- --if btn(1) then dvy=dvy+1 end
  dvy=jmpPlr()
  plr.vx=dvx
  plr.vy=dvy
