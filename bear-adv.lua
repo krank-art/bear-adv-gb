@@ -43,8 +43,9 @@ plr={
  lx=nil,ly=nil, -- last pos x,y
  vx=0,vy=0, -- velocity x,y
  w=10,h=20, -- width, height
- hr=20,hc=14, -- height running, height crouching
  cx=-5,cy=-20, -- collider pos x,y
+ hr=20,hc=14, -- height running, height crouching
+ cyr=-20,cyc=-14, -- collider offset y running, crouching
  onGrd=false,onCeil=false, -- onGround, onCeiling
  onLdr=false,onLdrTop=false, -- onLadder, onLadderTop
  mov=MOV.R,crch=false, -- movementMode, crouching
@@ -174,7 +175,7 @@ function drwPlr()
  else
   spr(770,sx-8,sy-24,1,1,flp,0,2,3)
  end
- rectb(plr.x+plr.cx-cam.x, plr.y+plr.cy-cam.y, plr.w, plr.h, 4)
+ --rectb(plr.x+plr.cx-cam.x, plr.y+plr.cy-cam.y, plr.w, plr.h, 4)
 end
 
 function updCam()
@@ -619,9 +620,11 @@ function updPlr()
  local dh=plr.hr-plr.hc -- delta height
  plr.crch=false
  plr.h=plr.hr
+ plr.cy=plr.cyr
  if btn(1) and plr.mov==MOV.R and plr.onGrd then
   plr.crch=true
   plr.h=plr.hc
+  plr.cy=plr.cyc
   --plr.y=plr.y+dh-1
  end
 
