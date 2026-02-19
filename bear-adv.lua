@@ -8,8 +8,8 @@
 
 -- set special collission rules for tiles where
 --  the dir(ection) shows which edge of tile is solid
---  e.g. N (north) means the top edge is solid
-DIR = {N=1,E=2,S=4,W=8}
+--  e.g. U (unset), N (north) means the top edge is solid
+DIR = {U=0, N=1,E=2,S=4,W=8}
 
 -- direction collision tiles flags
 --  only NORTH implemented so far
@@ -697,12 +697,13 @@ end
 
 -- solidSweep; return first solid tile pos
 --  or if direction is supplied, get pos after solid tile
-function sldSwp(x,y,w,h,dir)
+function sldSwp(x,y,w,h,dir,chkSemi)
  -- We need to round input since we step through the input
  --  in discrete steps (1px). See note below on discrete raycast.
  local x1,y1,x2,y2=rnd(x),rnd(y),rnd(x+w-1),rnd(y+h-1)
  local i1,i2,j1,j2=x1//8,x2//8,y1//8,y2//8
  local dir=dir or nil
+ if chkSemi~=false then chkSemi=true end
 
  --[[
   Essentially the cleanest solution would be to make multiple
@@ -719,19 +720,19 @@ function sldSwp(x,y,w,h,dir)
  if dir==DIR.E then -- East
   for i=x1,x2 do for j=j1,j2 do --cols first
     --trace(frmt("x1:%d y1:%d x2:%d y2:%d",x1,y1,x2,y2))
-    if isSld(i,j*8,DIR.E) then return i end
+    if isSld(i,j*8,chkSemi and DIR.E) then return i end
   end end
  elseif dir==DIR.W then -- West
   for i=x2,x1,-1 do for j=j1,j2 do --cols first
-    if isSld(i,j*8,DIR.W) then return i+1 end
+    if isSld(i,j*8,chkSemi and DIR.W) then return i+1 end
   end end
  elseif dir==DIR.S then -- South
   for j=y1,y2 do for i=i1,i2 do --rows first
-    if isSld(i*8,j,DIR.S) then return j end
+    if isSld(i*8,j,chkSemi and DIR.S) then return j end
   end end
  elseif dir==DIR.N then -- North
   for j=y2,y1,-1 do for i=i1,i2 do --rows first
-    if isSld(i*8,j,DIR.N) then return j+1 end
+    if isSld(i*8,j,chkSemi and DIR.N) then return j+1 end
   end end
  else --default: is any solid tile in the sweep
   for i=i1,i2 do for j=j1,j2 do
@@ -767,66 +768,15 @@ function movePlayer()
  end
 
  if vy>0 then --SOUTH
-  local tys=sldSwp(px+cx,py+cy+h,w,vy,DIR.S) 
+ -- if on ladder top and trying to pass down, ignore solid north flag
+  local chkSemi=true
+  if btn(1) and plr.onLdrTop then chkSemi=false end
+  local tys=sldSwp(px+cx,py+cy+h,w,vy,DIR.S,chkSemi) 
   if tys then vy=tys-(py+cy+h) end -- tys: tile y South
  elseif vy<0 then --NORTH
   local tyn=sldSwp(px+cx,py+cy+vy,w,abs(vy),DIR.N) 
   if tyn then vy=tyn-(py+cy) end -- tyn: tile y North
  end
-
- --[[
- -- first, horizontal movement
- if vx ~= 0 then
-  local sign = vx > 0 and 1 or -1
-  -- try moving pixel by pixel
-  for i = 1, abs(vx) do
-   if sign > 0 then
-    -- moving right: check right edge
-    -- TODO: Rewrite so its not 2 discrete tests (top edge and bottom edge), 
-    --  but getting all tiles in the range and testing them
-    if isSld(px+cx+w, py+cy) or isSld(px+cx+w, py+cy+h-1) then
-     vx = i - 1
-     break
-    end
-   else
-    -- moving left: check left edge
-    if isSld(px+cx-1, py+cy) or isSld(px+cx-1, py+cy+h-1) then
-     vx = -(i - 1)
-     break
-    end
-   end
-   px = px + sign
-  end
- end
- ]]--
-
- local ndir=DIR.N -- north direction
- -- if on ladder top and trying to pass down, ignore solid north flag
- if (btn(1) and plr.onLdrTop and vy>0) then ndir=nil end
- -- TODO: FIX
-
- --[[
- -- then, vertical movement
- if vy ~= 0 then
-  local sign = vy > 0 and 1 or -1
-  for i = 1, abs(vy) do
-   if sign > 0 then
-    -- moving down: check bottom edge
-    if isSld(px+cx,py+cy+h,ndir) or isSld(px+cx+w-1,py+cy+h,ndir) then
-     vy = i - 1
-     break
-    end
-   else
-    -- moving up: check top edge
-    if isSld(px+cx, py+cy-1) or isSld(px+cx+w-1, py+cy-1) then
-     vy = -(i - 1)
-     break
-    end
-   end
-   py = py + sign
-  end
- end
- ]]--
 
  -- remember last position
  plr.lx=plr.x
