@@ -523,7 +523,7 @@ function chkPlrGrd()
  local px,py,w,h,cx,cy=plr.x,plr.y,plr.w,plr.h,plr.cx,plr.cy
  local x1,x2,y=px+cx,px+cx+w-1,py+cy+h
  for i=x1,x2 do
-  if isSld(i,y+1,DIR.N) 
+  if isSld(i,y+1,DIR.S) 
   then return true end
  end
  return false
@@ -686,40 +686,56 @@ function isSld(x, y, dir)
   local flgs=dirColTls[tile]
   if flgs then 
    -- collission margin is one pixel
-   if (flgs & dir & DIR.N)~=0 and (y%8==0 or y%8==1) then return true end
-   if (flgs & dir & DIR.S)~=0 and (y%8==0 or y%8==7) then return true end
-   if (flgs & dir & DIR.E)~=0 and (x%8==0 or x%8==1) then return true end
-   if (flgs & dir & DIR.W)~=0 and (x%8==0 or x%8==7) then return true end
+   if (flgs & dir & DIR.S)~=0 and (y%8==0 or y%8==1) then return true end
+   if (flgs & dir & DIR.N)~=0 and (y%8==0 or y%8==7) then return true end
+   if (flgs & dir & DIR.W)~=0 and (x%8==0 or x%8==1) then return true end
+   if (flgs & dir & DIR.E)~=0 and (x%8==0 or x%8==7) then return true end
   end
  end
  return tile >= cfg.solidMin and tile <= cfg.solidMax
 end
 
 -- solidSweep; return first solid tile pos
+--  or if direction is supplied, get pos after solid tile
 function sldSwp(x,y,w,h,dir)
- local x1,y1,x2,y2=x//8,y//8,(x+w-1)//8,(y+h-1)//8
+ -- We need to round input since we step through the input
+ --  in discrete steps (1px). See note below on discrete raycast.
+ local x1,y1,x2,y2=rnd(x),rnd(y),rnd(x+w-1),rnd(y+h-1)
+ local i1,i2,j1,j2=x1//8,x2//8,y1//8,y2//8
  local dir=dir or nil
+
+ --[[
+  Essentially the cleanest solution would be to make multiple
+  parallel raycasts with a distance of 8 pixel inbetween.
+  Right now we have a discrete raycast since we step through it
+  for every pixel. This is a tradeoff since we need to get our
+  position in relation to the fixed grid. Maybe I could change
+  this to intersection math in the future.
+ ]]--
+
+ -- i,j = grid, precision of 8 for map
+ -- x,y = absolute position, precision of 1 (or even smaller)
  
  if dir==DIR.E then -- East
-  for i=x1,x2 do for j=y1,y2 do --cols first
+  for i=x1,x2 do for j=j1,j2 do --cols first
     --trace(frmt("x1:%d y1:%d x2:%d y2:%d",x1,y1,x2,y2))
-    if isSldMap(i,j,DIR.E) then return i*8 end
+    if isSld(i,j*8,DIR.E) then return i end
   end end
  elseif dir==DIR.W then -- West
-  for i=x2,x1,-1 do for j=y1,y2 do --cols first
-    if isSldMap(i,j,DIR.W) then return i*8+8 end
+  for i=x2,x1,-1 do for j=j1,j2 do --cols first
+    if isSld(i,j*8,DIR.W) then return i+1 end
   end end
  elseif dir==DIR.S then -- South
-  for j=y1,y2 do for i=x1,x2 do --rows first
-    if isSldMap(i,j,DIR.S) then return j*8 end
+  for j=y1,y2 do for i=i1,i2 do --rows first
+    if isSld(i*8,j,DIR.S) then return j end
   end end
  elseif dir==DIR.N then -- North
-  for j=y2,y1,-1 do for i=x1,x2 do --rows first
-    if isSldMap(i,j,DIR.N) then return j*8+8 end
+  for j=y2,y1,-1 do for i=i1,i2 do --rows first
+    if isSld(i*8,j,DIR.N) then return j+1 end
   end end
  else --default: is any solid tile in the sweep
-  for i=x1,x2 do for j=y1,y2 do
-    if isSldMap(i,j) then return true end
+  for i=i1,i2 do for j=j1,j2 do
+    if isSld(i*8,j*8) then return true end
   end end
  end
 
@@ -834,6 +850,7 @@ function clmp(v, low, hi) return math.max(low, math.min(hi, v)) end
 function tern(cond, t, f) -- ternary operation
  if cond then return t else return f end
 end
+function rnd(n) return math.floor(n + 0.5) end
 function tableToString(t)
  local parts = {}
  for k, v in pairs(t) do
