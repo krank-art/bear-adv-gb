@@ -674,41 +674,60 @@ end
 
 -- isSolid; return if tile at position is solid
 function isSld(x, y, dir)
- local tile = mget(flr(x/8), flr(y/8))
+ return isSldMap(x//8,y//8,dir)
+end
+
+function isSldMap(i,j,dir)
+ local tile = mget(i,j)
  if dir then
   local flgs=dirColTls[tile]
   if flgs then 
+   -- collission margin is one pixel
+   if (flgs & dir & DIR.N)~=0 then return true end
+   if (flgs & dir & DIR.S)~=0 then return true end
+   if (flgs & dir & DIR.E)~=0 then return true end
+   if (flgs & dir & DIR.W)~=0 then return true end
+   --[[
    -- collission margin is one pixel
    if (flgs & dir & DIR.N)~=0 and (y%8==0 or y%8==1) then return true end
    if (flgs & dir & DIR.S)~=0 and (y%8==0 or y%8==7) then return true end
    if (flgs & dir & DIR.E)~=0 and (x%8==0 or x%8==1) then return true end
    if (flgs & dir & DIR.W)~=0 and (x%8==0 or x%8==7) then return true end
+   ]]--
   end
  end
  return tile >= cfg.solidMin and tile <= cfg.solidMax
 end
 
--- isSolidSweep; return first solid tile index
--- along a line (x1,y1)->(x2,y2) otherwise false
-function isSldSwp(x1, y1, x2, y2)
- local dx = x2 - x1
- local dy = y2 - y1
- -- step one pixel at a time
- local steps = max(abs(dx), abs(dy)) 
- if steps == 0 then steps = 1 end
- local tx, ty
- for i = 0, steps do
-  local t = i / steps
-  local px = x1 + dx * t
-  local py = y1 + dy * t
-  tx = flr(px / 8)
-  ty = flr(py / 8)
-  local tile = mget(tx, ty)
-  if tile >= cfg.solidMin and tile <= cfg.solidMax then
-   return tile, tx, ty -- first solid tile found
-  end
+-- solidSweep; return first solid tile pos
+function sldSwp(x,y,w,h,dir)
+ local x1,y1,x2,y2=x//8,y//8,(x+w-1)//8,(y+h-1)//8
+ local dir=dir or nil
+ 
+ if dir==DIR.E then -- East
+  for i=x1,x2 do for j=y1,y2 do --cols first
+    --trace(frmt("x1:%d y1:%d x2:%d y2:%d",x1,y1,x2,y2))
+    if isSldMap(i,j,DIR.E) then return i*8 end
+  end end
+ elseif dir==DIR.W then -- West
+  for i=x2,x1,-1 do for j=y1,y2 do --cols first
+    if isSldMap(i,j,DIR.W) then return i*8+8 end
+  end end
+ elseif dir==DIR.S then -- South
+  for j=y1,y2 do for i=x1,x2 do --rows first
+    if isSldMap(i,j,DIR.S) then return j*8 end
+  end end
+ elseif dir==DIR.N then -- North
+  for j=y2,y1,-1 do for i=x1,x2 do --rows first
+    if isSldMap(i,j,DIR.N) then return j*8+8 end
+  end end
+ else --default: is any solid tile in the sweep
+  for i=x1,x2 do for j=y1,y2 do
+    if isSldMap(i,j) then return true end
+  end end
  end
- return false -- no solid tiles
+
+ return nil -- default: returns nothing
 end
 
 function printTileAt(x,y,px,py)
@@ -726,6 +745,24 @@ function movePlayer()
  local w, h = plr.w, plr.h
  local cx, cy = plr.cx, plr.cy
 
+ if vx>0 then --EAST
+  -- we move East, so we need to check tiles with **WEST** edge
+  local txe=sldSwp(px+cx+w,py+cy,vx,h,DIR.E) 
+  if txe then vx=txe-(px+cx+w) end -- txe: tile x East
+ elseif vx<0 then --WEST
+  local txw=sldSwp(px+cx+vx,py+cy,abs(vx),h,DIR.W) 
+  if txw then vx=txw-(px+cx) end -- txw: tile x West
+ end
+
+ if vy>0 then --SOUTH
+  local tys=sldSwp(px+cx,py+cy+h,w,vy,DIR.S) 
+  if tys then vy=tys-(py+cy+h) end -- tys: tile y South
+ elseif vy<0 then --NORTH
+  local tyn=sldSwp(px+cx,py+cy+vy,w,abs(vy),DIR.N) 
+  if tyn then vy=tyn-(py+cy) end -- tyn: tile y North
+ end
+
+ --[[
  -- first, horizontal movement
  if vx ~= 0 then
   local sign = vx > 0 and 1 or -1
@@ -749,11 +786,14 @@ function movePlayer()
    px = px + sign
   end
  end
+ ]]--
 
  local ndir=DIR.N -- north direction
  -- if on ladder top and trying to pass down, ignore solid north flag
  if (btn(1) and plr.onLdrTop and vy>0) then ndir=nil end
+ -- TODO: FIX
 
+ --[[
  -- then, vertical movement
  if vy ~= 0 then
   local sign = vy > 0 and 1 or -1
@@ -774,6 +814,7 @@ function movePlayer()
    py = py + sign
   end
  end
+ ]]--
 
  -- remember last position
  plr.lx=plr.x
