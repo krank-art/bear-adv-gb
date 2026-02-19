@@ -30,13 +30,27 @@ cfg={solidMin=1,solidMax=95,maxJmpTmr=28,jmpVel=2,G=2}
 -- movement type: Running, Ladder (Climbing), Swimming
 MOV={R=1,L=2,S=4}
 
--- x, y, velocity x, velocity y width, height, onGround, 
---  onCeiling, onLadder, onLadderTop, movement mode, jumpTimer, 
---  jumpReleased, jumpSound, flipped, last x, last y
-plr={x=96,y=24,vx=0,vy=0,w=10,h=20,onGrd=false,
- onCeil=false,onLdr=false,onLdrTop=false,mov=MOV.R,
- jmpTmr=0,jmpRls=true,jmpSnd=false,
- flp=false,lx=nil,ly=nil}
+--[[
+   v head
+.-----.
+|     | < collider
+|     |
+'--o--'
+   ^(x,y) player origin (feet)
+]]--
+plr={
+ x=96,y=24, -- pos x,y
+ lx=nil,ly=nil, -- last pos x,y
+ vx=0,vy=0, -- velocity x,y
+ w=10,h=20, -- width, height
+ hr=20,hc=14, -- height running, height crouching
+ cx=-5,cy=-20, -- collider pos x,y
+ onGrd=false,onCeil=false, -- onGround, onCeiling
+ onLdr=false,onLdrTop=false, -- onLadder, onLadderTop
+ mov=MOV.R,crch=false, -- movementMode, crouching
+ jmpTmr=0,jmpRls=true,jmpSnd=false, -- jump timer, released, sound
+ flp=false, -- flipped
+}
 
 lvl={x=0,y=0,w=90,h=34,coins=0,gears=0}
 
@@ -154,7 +168,13 @@ end
 
 function drwPlr()
  local flp=plr.flp and 1 or 0
- spr(770,plr.x-3-cam.x,plr.y-cam.y-4,1,1,flp,0,2,3)
+ local sx,sy=plr.x-cam.x,plr.y-cam.y -- sprite x and y
+ if plr.crch then
+  spr(806,sx-8,sy-16,1,1,flp,0,2,2)
+ else
+  spr(770,sx-8,sy-24,1,1,flp,0,2,3)
+ end
+ rectb(plr.x+plr.cx-cam.x, plr.y+plr.cy-cam.y, plr.w, plr.h, 4)
 end
 
 function updCam()
@@ -167,11 +187,11 @@ function updCam()
  -- TODO: drag camera to smooth motion and give sudden
  --  stops more punch (overshoot for a few frames)
 
- local px=plr.x+plr.w//2-120 -- x basis is centered player pos
+ local px=plr.x-120 -- x basis is centered player pos
  local dx=cam.dx+plr.x-plr.lx -- x offset based on player movement
 
  local q,dy=24,0 --y padding, offset (delta) y
- local cy1,cy2=cam.ty+q,cam.ty+136-plr.h-q
+ local cy1,cy2=cam.ty+plr.h+q,cam.ty+136-q
  if plr.y<cy1 then dy=plr.y-cy1
  elseif plr.y>cy2 then dy=plr.y-cy2 end
 
@@ -188,8 +208,8 @@ function updCam()
  if cbx then
   local bx1, by1, bx2, by2=
    cbx.x, cbx.y, cbx.x+cbx.w, cbx.y+cbx.h
-  if plr.x>=bx1 and plr.x+plr.w<bx2 and 
-    plr.y>=by1 and plr.y+plr.h<by2 then
+  if (plr.x+plr.cx)>=bx1 and (plr.x+plr.cx+plr.w)<bx2 and 
+    (plr.y+plr.cy)>=by1 and (plr.y+plr.cy+plr.h)<by2 then
    cam.tx=clmp(cam.tx,bx1,bx2-240)
    cam.ty=clmp(cam.ty,by1,by2-136)
   end
@@ -484,7 +504,8 @@ end
 -- check if player is on top of ladder
 function chkPlrLdrTop()
  if not plr.onGrd then return false end
- local x1,x2,y=plr.x,plr.x+plr.w-1,plr.y+plr.h
+ local px,py,pw,ph,pcx,pcy=plr.x,plr.y,plr.w,plr.h,plr.cx,plr.cy
+ local x1,x2,y=px+pcx,px+pcx+pw-1,py+pcy+ph
  local i1,i2,j=x1//8,x2//8,y//8
  for i=i1,i2 do
   -- triggers also on grid that has no top collission
@@ -495,16 +516,20 @@ function chkPlrLdrTop()
 end
 
 function chkPlrGrd()
- for i=0, plr.w-1 do
-  if isSld(plr.x+i,plr.y+plr.h+1,DIR.N) 
+ local px,py,w,h,cx,cy=plr.x,plr.y,plr.w,plr.h,plr.cx,plr.cy
+ local x1,x2,y=px+cx,px+cx+w-1,py+cy+h
+ for i=x1,x2 do
+  if isSld(i,y+1,DIR.N) 
   then return true end
  end
  return false
 end
 
 function chkPlrCeil()
- for i=0, plr.w-1 do
-  if isSld(plr.x+i,plr.y-1) then return true end
+ local px,py,w,cx,cy=plr.x,plr.y,plr.w,plr.cx,plr.cy
+ local x1,x2,t=px+cx,px+cx+w-1,py+cy --t for top
+ for i=x1,x2 do
+  if isSld(i,t-1) then return true end
  end
  return false
 end
@@ -570,8 +595,9 @@ end
 
 -- check player tiles
 function chkPlrTil(checker)
- local x,y,w,h=plr.x,plr.y,plr.w,plr.h
- local x1,x2,y1,y2=x//8,(x+w-1)//8,y//8,(y+h-1)//8
+ local px,py,w,h,cx,cy=plr.x,plr.y,plr.w,plr.h,plr.cx,plr.cy
+ local x1, x2, y1, y2 = 
+  (px+cx)//8, (px+cx+w-1)//8, (py+cy)//8, (py+cy+h-1)//8
  for i=x1,x2 do
   for j=y1,y2 do
    if checker(mget(i,j),i,j)==true then return true end
@@ -588,14 +614,26 @@ function updPlr()
  if plr.mov==MOV.L and not plr.onLdr then plr.mov=MOV.R end
  -- enter ladder mode when pressing up and ladder in reach
  if (btn(0) or btn(1)) and plr.onLdr then plr.mov=MOV.L end
+ 
+ -- handle crouching; WIP
+ local dh=plr.hr-plr.hc -- delta height
+ plr.crch=false
+ plr.h=plr.hr
+ if btn(1) and plr.mov==MOV.R and plr.onGrd then
+  plr.crch=true
+  plr.h=plr.hc
+  --plr.y=plr.y+dh-1
+ end
 
+ -- walk left and right
  local dvx,dvy=0,0 -- delta velocity
+ local s=plr.crch and 0.5 or 1 -- speed
  if btn(2) then 
-  dvx=dvx-1
+  dvx=dvx-s
   plr.flp=true
  end
  if btn(3) then
-  dvx=dvx+1
+  dvx=dvx+s
   plr.flp=false
  end
  dvy=jmpPlr()
@@ -612,14 +650,14 @@ end
 
 -- tests if player collides with entities
 function updCol()
- local px,py,pw,ph=plr.x,plr.y,plr.w,plr.h
+ local px,py,pw,ph,pcx,pcy=plr.x,plr.y,plr.w,plr.h,plr.cx,plr.cy
  cols={} -- refresh each frame
  for k, ent in pairs(ents) do
   local def=ent.def
   local col=def.col -- collider in ent def
   local ex,ey=ent.x,ent.y
   local cx,cy,cw,ch = col[1],col[2],col[3],col[4]
-  if aabb(px,py,pw,ph,ex+cx,ey+cy,cw,ch) then
+  if aabb(px+pcx,py+pcy,pw,ph,ex+cx,ey+cy,cw,ch) then
    cols[#cols+1]=k -- store entity index
   end
  end
@@ -683,6 +721,7 @@ function movePlayer()
  local px, py = plr.x, plr.y
  local vx, vy = plr.vx, plr.vy
  local w, h = plr.w, plr.h
+ local cx, cy = plr.cx, plr.cy
 
  -- first, horizontal movement
  if vx ~= 0 then
@@ -691,13 +730,15 @@ function movePlayer()
   for i = 1, abs(vx) do
    if sign > 0 then
     -- moving right: check right edge
-    if isSld(px + w, py) or isSld(px + w, py + h - 1) then
+    -- TODO: Rewrite so its not 2 discrete tests (top edge and bottom edge), 
+    --  but getting all tiles in the range and testing them
+    if isSld(px+cx+w, py+cy) or isSld(px+cx+w, py+cy+h-1) then
      vx = i - 1
      break
     end
    else
     -- moving left: check left edge
-    if isSld(px - 1, py) or isSld(px - 1, py + h - 1) then
+    if isSld(px+cx-1, py+cy) or isSld(px+cx-1, py+cy+h-1) then
      vx = -(i - 1)
      break
     end
@@ -716,13 +757,13 @@ function movePlayer()
   for i = 1, abs(vy) do
    if sign > 0 then
     -- moving down: check bottom edge
-    if isSld(px,py+h,ndir) or isSld(px+w-1,py+h,ndir) then
+    if isSld(px+cx,py+cy+h,ndir) or isSld(px+cx+w-1,py+cy+h,ndir) then
      vy = i - 1
      break
     end
    else
     -- moving up: check top edge
-    if isSld(px, py - 1) or isSld(px + w - 1, py - 1) then
+    if isSld(px+cx, py+cy-1) or isSld(px+cx+w-1, py+cy-1) then
      vy = -(i - 1)
      break
     end
