@@ -188,11 +188,11 @@ function drwPlr()
  local flp=plr.flp and 1 or 0
  local sx,sy=plr.x-cam.x,plr.y-cam.y -- sprite x and y
  if plr.crch then
-  spr(804,sx-8,sy-16,1,1,flp,0,2,2))
+  spr(804,sx-8,sy-16,1,1,flp,0,2,2)
  elseif plr.mov==MOV.L then
   spr(704,sx-12,sy-24,1,1,flp,0,3,3)
  elseif not plr.onGrd then
-  spr(707,sx-12,sy-24,1,1,flp,0,3,3
+  spr(707,sx-12,sy-24,1,1,flp,0,3,3)
  else
   spr(800,sx-8,sy-24,1,1,flp,0,2,3)
  end
