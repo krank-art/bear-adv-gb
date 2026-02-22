@@ -73,7 +73,7 @@ entDefs={
  -- surprise block
  --sblk={{0,0,12,0,0,2,2},{0,0,16,16},"sblk"}
  coin={
-  ani={{18,16,0,0,2,2},{20,8},{22},{24},{26},{28}},
+  ani={{18,16,0,0,2,2},{20,8},{22},{24},{26},{id=28}},
   tml={}, -- timeline, generated on load
   cani={}, -- constant animation, generated on load
   def=nil, -- shorthand for entity definition
@@ -338,13 +338,27 @@ function bldCnstAni(ani)
  --  e.g.: ani={{18,4,0,0,2,2},{20},{22},{20}}
  local cani={} -- constant animation
  local f=ani[1] -- first frame
- -- tile id, duration, x, y, tile width, tile height
- local t,d,x,y,w,h=f[1],f[2],f[3],f[4],f[5],f[6]
+ -- we can also use mixed tables to circumvent long lists of
+ --  nil if a later attribute like 'flipped' changes
+ local t,d,x,y,w,h,fl=
+  f.id or f[1],  -- sprite id
+  f.dur or f[2], -- duration
+  f.x or f[3],   -- offset x
+  f.y or f[4],   -- offset y
+  f.w or f[5],   -- tile width
+  f.h or f[6],   -- tile height
+  f.flp or f[7]  -- flipped
  for i,c in ipairs(ani) do
   -- c is current frame
-  t,d,x=c[1] or t, c[2] or d, c[3] or x
-  y,w,h=c[4] or y, c[5] or w, c[6] or h
-  cani[i]={t,d,x,y,w,h}
+  t,d,x,y,w,h,fl=
+   c.id or c[1] or t,
+   c.dur or c[2] or d,
+   c.x or c[3] or x,
+   c.y or c[4] or y,
+   c.w or c[5] or w,
+   c.h or c[6] or h,
+   c.flp or c[7] or fl
+  cani[i]={t,d,x,y,w,h,fl}
  end
 
  return tml,cani
