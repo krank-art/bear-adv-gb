@@ -73,7 +73,8 @@ entDefs={
  -- surprise block
  --sblk={{0,0,12,0,0,2,2},{0,0,16,16},"sblk"}
  coin={
-  ani={{18,16,0,0,2,2},{20,8},{22},{24},{26},{id=28}},
+  -- we can save on frames by flipping existing ones for rotation
+  ani={{18,16,0,0,2,2},{20,8},{22},{24},{22,x=-1,flp=1},{20}},
   tml={}, -- timeline, generated on load
   cani={}, -- constant animation, generated on load
   def=nil, -- shorthand for entity definition
@@ -327,7 +328,8 @@ function bldCnstAni(ani)
  local tml,t,dur = {0},0,0
  for i,frm in ipairs(ani) do
   -- if duration present in this frame, update it
-  if frm[2]~=nil then dur=frm[2] end
+  local fd=frm.dur or frm[2]
+  if fd~=nil then dur=fd end
   t=t+dur
   tml[#tml+1]=t
  end
@@ -519,8 +521,8 @@ function plyAni(cani,tml,state,x,y)
 
  -- draw sprite
  local f=cani[curFrmIdx]
- local t,d,fx,fy,w,h=f[1],f[2],f[3],f[4],f[5],f[6]
- spr(t,x+fx,y+fy,1,1,0,0,w,h)
+ local t,d,fx,fy,w,h,fl=f[1],f[2],f[3],f[4],f[5],f[6],f[7] or 0
+ spr(t,x+fx,y+fy,1,1,fl,0,w,h)
  --error(tableToString(cani[2]))
  --print(curFrmIdx)
  
@@ -878,8 +880,6 @@ end
 -- 010:5555555555100555558fa45551eff35551feb25558feff455cfeff4558eeaa45
 -- 011:5555555555504555551b255555cff45555cba45551fff35551fff35551ffa255
 -- 012:5555555555504555551a2555551f3555551a2555551f3555551f3555551a2555
--- 013:5555555555504555551a355555cff455558af45551fff35551fff35551aef355
--- 014:5555555555100555558eb45551fff25551afe3555cffeb455cffef4558aeea45
 -- 016:0000455500004555000045550000455500004555000045550000455500004555
 -- 017:5555555155555551555555515555555155555551555555515555555155555551
 -- 018:100000004ff70000cfff0000cff500004f550000475500004555000045550000
@@ -892,8 +892,6 @@ end
 -- 026:58eeaa4558eeaa4558fefa4551eea25551efb255558fa4555510055555555555
 -- 027:51ffa25551ffa25551ffa25555cba45555cba455551b25555550455555555555
 -- 028:551a2555551a2555551a2555551a2555551a2555551a25555550455555555555
--- 029:51aef35551aef35551aef355558af455558af455551a35555550455555555555
--- 030:58aeea4558aeea4558efeb4551aee25551aff255558eb4555510055555555555
 -- 032:0000455500004555000045550000055500001555000014550000505500005100
 -- 033:5555555155555551555555515555555055555554555555145555550500000045
 -- 034:100000004aa600008aaa00008aa500004a550000465500004555000045550000
