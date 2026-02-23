@@ -120,8 +120,15 @@ entDefs={
  }
 }
 
--- collissions, updates each frame
+-- collisions, updates each frame
 cols={}
+
+-- solid collisions, updates each frame
+--  we draw a big buffer zone around the player and then
+--  check the collisions with the buffer zone. This is so
+--  we only need to do solid collision handling for entities
+--  in proximity of the player
+sldCols={}
 
 -- touches, updates each frame
 tchs={}
@@ -174,6 +181,7 @@ end
 
 function TIC()
  cls(13)
+ updSldCol()
  updPlr()
  updMap()
  updCol()
@@ -186,6 +194,7 @@ function TIC()
  --print("HELLO WORLD!",84,84)
  print(tableToString(plr),2,10,15,false,1,true)
  print(frmt("coins: %d / gears: %d",lvl.coins,lvl.gears),2,2,15)
+ print(frmt("sldCols: %d",#sldCols),100,2,15)
  --print(tableToString(cam))
  drwEnts()
  drwPlr()
@@ -766,18 +775,38 @@ end
 -- tests if player collides with entities
 function updCol()
  local px,py,pw,ph,pcx,pcy=plr.x,plr.y,plr.w,plr.h,plr.cx,plr.cy
+ local a1,a2,a3,a4=px+pcx,py+pcy,pw,ph
  cols={} -- refresh each frame
  for k, ent in pairs(ents) do
   local def=ent.def
   local col=def.col -- collider in ent def
   local ex,ey=ent.x,ent.y
   local cx,cy,cw,ch = col[1],col[2],col[3],col[4]
-  local a1,a2,a3,a4,a5,a6,a7,a8=
-   px+pcx,py+pcy,pw,ph,ex+cx,ey+cy,cw,ch
+  local a5,a6,a7,a8=ex+cx,ey+cy,cw,ch
   if aabb(a1,a2,a3,a4,a5,a6,a7,a8) then -- overlap
    cols[#cols+1]=k -- store entity index
   elseif aabbTch(a1,a2,a3,a4,a5,a6,a7,a8) then -- touch
    tchs[#tchs+1]=k -- store entity index
+  end
+ end
+end
+
+-- tests if player collides with entities
+function updSldCol()
+ local px,py,pw,ph,pcx,pcy=plr.x,plr.y,plr.w,plr.h,plr.cx,plr.cy
+ local m=32 -- margin
+ local a1,a2,a3,a4=px+pcx-m,py+pcy-m,pw+2*m,ph+2*m
+ sldCols={} -- refresh each frame
+ for k, ent in pairs(sldEnts) do
+  local def=ent.def
+  local col=def.col -- collider in ent def
+  local ex,ey=ent.x,ent.y
+  local cx,cy,cw,ch = col[1],col[2],col[3],col[4]
+  local a5,a6,a7,a8=ex+cx,ey+cy,cw,ch
+  if aabb(a1,a2,a3,a4,a5,a6,a7,a8) then -- overlap
+   sldCols[#sldCols+1]=k -- store entity index
+  --elseif aabbTch(a1,a2,a3,a4,a5,a6,a7,a8) then -- touch
+  -- tchs[#tchs+1]=k -- store entity index
   end
  end
 end
@@ -870,6 +899,56 @@ function sldSwp(x,y,w,h,dir,chkSemi)
  return nil -- default: returns nothing
 end
 
+-- solid sweep entities for player
+--  axis=0: horizontal, axis=1: vertical
+--  returns the max possible velocity to either hit nothing
+--  or reach the solid entity
+function sldSwpEntPlr(axis)
+ axis=axis or 0
+ local px,py,pw,ph=plr.x+plr.cx,plr.y+plr.cy,plr.w,plr.h
+ local vx,vy,wx,wy=plr.vx,plr.vy,abs(plr.vx),abs(plr.vy)
+ if axis==0 and vx==0 then return 0 end
+ if axis==1 and vy==0 then return 0 end
+ local qx,qy,qw,qh,dir
+ if axis==0 and vx>0 then
+  dir=DIR.E
+  qx,qy,qw,qh=px+pw,py,wx,ph
+ elseif axis==0 and vx<0 then
+  dir=DIR.W
+  qx,qy,qw,qh=px-wx,py,wx,ph
+ elseif axis==1 and vy>0 then
+  dir=DIR.S
+  qx,qy,qw,qh=px,py+ph,pw,wy
+ elseif axis==1 and vy<0 then
+  dir=DIR.N
+  qx,qy,qw,qh=px,py-wy,pw,wy
+ else
+  error("Unhandled player solid entity sweep state")
+ end
+ local v -- closet value in collision direction
+ for cid,ent in pairs(sldCols) do -- collision id, entity
+  local col=ent.def.col
+  local cx,cy,cw,ch=col[1],col[2],col[3],col[4]
+  local ex,ey,ew,eh=ent.x+cx,ent.y+cy,cw,ch
+  if aabb(qx,qy,qw,qh,ex,ey,ew,eh) then
+   if dir==DIR.E then
+    v=v or qx+qw -- maximum value if not set yet
+    v=min(v,ex) -- compare if entity pos is closer by, if yes assign
+   elseif dir==DIR.W then
+    v=v or qx
+    v=max(v,ex+ew)
+   elseif dir==DIR.S then
+    v=v or qy+qh
+    v=min(v,ey)
+   elseif dir==DIR.N then
+    v=v or qy
+    v=max(v,ey+eh)
+   end
+  end
+ end
+ return v
+end
+
 function printTileAt(x,y,px,py)
  local tx = flr(x/8)
  local ty = flr(y/8)
@@ -884,6 +963,8 @@ function movePlayer()
  local vx, vy = plr.vx, plr.vy
  local w, h = plr.w, plr.h
  local cx, cy = plr.cx, plr.cy
+
+
 
  if vx>0 then --EAST
   -- we move East, so we need to check tiles with **WEST** edge
