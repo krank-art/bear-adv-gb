@@ -150,7 +150,9 @@ entCnt=-1
 
 -- solid entities; 
 -- gets updated before player and used in player world collision
-sldEnts={}
+sldEnts={
+ {id="anblo",x=240,y=80},
+}
 sldEntCnt=-1
 
 t=0
@@ -182,6 +184,9 @@ end
 function TIC()
  cls(13)
  updSldCol()
+ local exampleSldEnt=sldEnts.n1
+ exampleSldEnt.y=exampleSldEnt.y-(sin(t*0.15)*2)
+ -- TODO: Move player if pushed by solid entities
  updPlr()
  updMap()
  updCol()
@@ -312,17 +317,19 @@ function updEnts()
   local ent=ents[key]
   local def=ent.def
   local bhv=def.bhv
-  for j,trait in pairs(bhv) do
-   if trait=="coin" then 
-    sfx(table.unpack(snd.coin))
-    lvl.coins=lvl.coins+1
-    ent.dead=true
-   end
-   if trait=="gear" then 
-    plySnd("gear")
-    --sfx(table.unpack(snd.gear))
-    lvl.gears=lvl.gears+1
-    ent.dead=true
+  if bhv then
+   for j,trait in pairs(bhv) do
+    if trait=="coin" then 
+     sfx(table.unpack(snd.coin))
+     lvl.coins=lvl.coins+1
+     ent.dead=true
+    end
+    if trait=="gear" then 
+     plySnd("gear")
+     --sfx(table.unpack(snd.gear))
+     lvl.gears=lvl.gears+1
+     ent.dead=true
+    end
    end
   end
  end
