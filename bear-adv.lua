@@ -62,12 +62,12 @@ plr={
 plrAni={
  ani={
   idle={{800,16,-8,-24,2,3}},
-  walk={{800,16,-8,-24,2,3},{802}},
+  walk={{800,10,-8,-24,2,3},{802}},
   crci={{804,16,-8,-16,2,2}}, -- crouch idle
   crcw={{804,16,-8,-16,2,2},{806}}, -- crouch walk
   jump={{707,16,-12,-24,3,3}},
   ldri={{704,16,-12,-24,3,3}},
-  ldrw={{704,16,-12,-24,3,3},{flp=true}},
+  ldrw={{704,16,-12,-24,3,3},{flp=1}},
  },
  cani={}, -- constant animation, generated on load
  tml={}, -- timeline, generated on load
@@ -205,26 +205,22 @@ end
 function drwPlr()
  local flp=plr.flp and 1 or 0
  local sx,sy=plr.x-cam.x,plr.y-cam.y -- sprite x and y
- local aniName,x,y -- animation name, x, y
- -- Crouching
- if plr.crch then
-  --spr(804,sx-8,sy-16,1,1,flp,0,2,2)
-  aniName,x,y="crci",sx-8,sy-16
+ local vx,vy=plr.vx,plr.vy
+ local aniName -- animation name
+
+ if plr.crch then  -- Crouching
+  aniName=tern(vx~=0,"crcw","crci")
+ elseif plr.mov==MOV.L then -- On Ladder
+  aniName=tern(vx~=0 or vy~=0,"ldrw","ldri")
+ elseif not plr.onGrd then -- Jumping
+  aniName="jump"
+ else -- Normal
+  aniName=tern(vx~=0,"walk","idle")
+ end
+
  local cani,tml,ast=
   plrAni.cani[aniName],plrAni.tml[aniName],plrAni.ast[aniName]
  plyAni(cani,tml,ast,sx,sy,flp)
-  -- On Ladder
- elseif plr.mov==MOV.L then
-  spr(704,sx-12,sy-24,1,1,flp,0,3,3)
-
-  -- Jumping
- elseif not plr.onGrd then
-  spr(707,sx-12,sy-24,1,1,flp,0,3,3)
-
- -- Idle
- else
-  spr(800,sx-8,sy-24,1,1,flp,0,2,3)
- end
  --rectb(plr.x+plr.cx-cam.x, plr.y+plr.cy-cam.y, plr.w, plr.h, 4)
 end
 
