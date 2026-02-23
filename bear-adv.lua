@@ -33,7 +33,7 @@ cfg={solidMin=1,solidMax=95,maxJmpTmr=28,jmpVel=2,G=2}
 -- movement type: Running, Ladder (Climbing), Swimming
 MOV={R=1,L=2,S=4}
 
---[[
+--[[ player
    v head
 .-----.
 |     | < collider
@@ -54,6 +54,24 @@ plr={
  mov=MOV.R,crch=false, -- movementMode, crouching
  jmpTmr=0,jmpRls=true,jmpSnd=false, -- jump timer, released, sound
  flp=false, -- flipped
+}
+
+-- player animation
+-- {tile id, [duration], [tile x], [tile y], 
+--  [tile width], [tile height], [flipped]},
+plrAni={
+ ani={
+  idle={{800,16,-8,-24,2,3}},
+  walk={{800,16,-8,-24,2,3},{802}},
+  crci={{804,16,-8,-16,2,2}}, -- crouch idle
+  crcw={{804,16,-8,-16,2,2},{806}}, -- crouch walk
+  jump={{707,16,-12,-24,3,3}},
+  ldri={{704,16,-12,-24,3,3}},
+  ldrw={{704,16,-12,-24,3,3},{flp=true}},
+ },
+ cani={}, -- constant animation, generated on load
+ tml={}, -- timeline, generated on load
+ ast={}, -- animation state, remembers animation progress between frames
 }
 
 lvl={x=0,y=0,w=90,h=34,coins=0,gears=0}
@@ -187,12 +205,23 @@ end
 function drwPlr()
  local flp=plr.flp and 1 or 0
  local sx,sy=plr.x-cam.x,plr.y-cam.y -- sprite x and y
+ local aniName,x,y -- animation name, x, y
+ -- Crouching
  if plr.crch then
-  spr(804,sx-8,sy-16,1,1,flp,0,2,2)
+  --spr(804,sx-8,sy-16,1,1,flp,0,2,2)
+  aniName,x,y="crci",sx-8,sy-16
+ local cani,tml,ast=
+  plrAni.cani[aniName],plrAni.tml[aniName],plrAni.ast[aniName]
+ plyAni(cani,tml,ast,sx,sy,flp)
+  -- On Ladder
  elseif plr.mov==MOV.L then
   spr(704,sx-12,sy-24,1,1,flp,0,3,3)
+
+  -- Jumping
  elseif not plr.onGrd then
   spr(707,sx-12,sy-24,1,1,flp,0,3,3)
+
+ -- Idle
  else
   spr(800,sx-8,sy-24,1,1,flp,0,2,3)
  end
@@ -311,13 +340,23 @@ function loadEnts(ents)
  end
 end
 
--- build constant animation for all entity definitions
+-- build constant animation for all 
+--  entity definitions and player
 function bldCnstAniAll(ent)
+ -- entities
  for entName,data in pairs(ent) do
   local tml,cani=bldCnstAni(data.ani)
   local cur=entDefs[entName]
   cur.tml=tml
   cur.cani=cani
+ end
+ 
+ -- player
+ for aniName,aniData in pairs(plrAni.ani) do
+  local tml,cani=bldCnstAni(aniData)
+  plrAni.tml[aniName]=tml
+  plrAni.cani[aniName]=cani
+  plrAni.ast[aniName]={el=0} -- elapsed ticks
  end
 end
 
@@ -507,8 +546,9 @@ function plyInt()
 end
 
 -- play animation (constant animation, timeline,
---  animation state, x, y)
-function plyAni(cani,tml,state,x,y)
+--  animation state, x, y, [flp=0])
+function plyAni(cani,tml,state,x,y,flp)
+ flp=flp or 0
  local el=state.el -- elapsed ticks
  local dur=tml[#tml] -- total animation duration
   
@@ -522,7 +562,8 @@ function plyAni(cani,tml,state,x,y)
  -- draw sprite
  local f=cani[curFrmIdx]
  local t,d,fx,fy,w,h,fl=f[1],f[2],f[3],f[4],f[5],f[6],f[7] or 0
- spr(t,x+fx,y+fy,1,1,fl,0,w,h)
+ local flpSpr=(flp+fl)%2 -- (flip animation + flip frame) % 2
+ spr(t,x+fx,y+fy,1,1,flpSpr,0,w,h)
  --error(tableToString(cani[2]))
  --print(curFrmIdx)
  
