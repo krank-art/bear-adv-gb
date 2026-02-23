@@ -937,7 +937,7 @@ function sldSwpEntPlr(axis)
  local vx,vy,wx,wy=plr.vx,plr.vy,abs(plr.vx),abs(plr.vy)
  if axis==0 and vx==0 then return 0 end
  if axis==1 and vy==0 then return 0 end
- local qx,qy,qw,qh,dir
+ local qx,qy,qw,qh,dir -- player velocity AABB with x,y,w,h; movement dir
  local v -- closet value in collision direction; gets returned
  if axis==0 and vx>0 then
   dir=DIR.E
@@ -965,10 +965,12 @@ function sldSwpEntPlr(axis)
   local ex,ey,ew,eh=ent.x+cx,ent.y+cy,cw,ch
   if aabb(qx,qy,qw,qh,ex,ey,ew,eh) then
    -- compare if entity pos is closer by, if yes assign
+   -- We convert from width to position, so we need to subtract 1
+   --  in direction WEST and NORTH.
        if dir==DIR.E then v=min(v,ex-qx)
-   elseif dir==DIR.W then v=max(v,ex+ew-qx)
+   elseif dir==DIR.W then v=max(v,ex+ew-1-qx)
    elseif dir==DIR.S then v=min(v,ey-qy)
-   elseif dir==DIR.N then v=max(v,ey+eh-qy) end
+   elseif dir==DIR.N then v=max(v,ey+eh-1-qy) end
   end
  end
  return v
@@ -988,8 +990,6 @@ function movePlayer()
  local vx, vy = plr.vx, plr.vy
  local w, h = plr.w, plr.h
  local cx, cy = plr.cx, plr.cy
-
-
 
  if vx>0 then --EAST
   -- we move East, so we need to check tiles with **WEST** edge
