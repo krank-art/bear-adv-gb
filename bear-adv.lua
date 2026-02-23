@@ -640,6 +640,9 @@ function chkPlrGrd()
   if isSld(i,y+1,DIR.S) 
   then return true end
  end
+ local exitEarly=1
+ -- standing on solid entity
+ if sldEntPlrAABB(x1,y+1,w,1,exitEarly)==true then return true end
  return false
 end
 
@@ -649,6 +652,9 @@ function chkPlrCeil()
  for i=x1,x2 do
   if isSld(i,t-1) then return true end
  end
+ local exitEarly=1
+ -- standing on solid entity
+ if sldEntPlrAABB(x1,t-1,w,1,exitEarly)==true then return true end
  return false
 end
 
@@ -898,6 +904,27 @@ function sldSwp(x,y,w,h,dir,chkSemi)
  end
 
  return nil -- default: returns nothing
+end
+
+-- solid entities AABB collision; returns {} or bool
+--  returns all collisions with solid tiles in the
+--  solid tiles inside the margin zone of the player;
+--  If exitEarly is 1, then return true upon the first hit
+function sldEntPlrAABB(x,y,w,h,exitEarly)
+ exitEarly=exitEarly or 0
+ local entsHit={}
+ for _,eid in pairs(sldCols) do -- _, entity id
+  local ent=sldEnts[eid]
+  local col=ent.def.col
+  local cx,cy,cw,ch=col[1],col[2],col[3],col[4]
+  local ex,ey,ew,eh=ent.x+cx,ent.y+cy,cw,ch
+  if aabb(x,y,w,h,ex,ey,ew,eh) then
+   if exitEarly==1 then return true end
+   entsHit[#entsHit+1]=eid
+  end
+ end
+ if exitEarly==1 then return false end
+ return entsHit
 end
 
 -- solid sweep entities for player
